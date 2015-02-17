@@ -1,0 +1,182 @@
+#Description: This program reads sequence data from fasta.txt, exports the actual tetranucleotides into an array "observed", computes the "expected" value of each tetranucleotide, and outputs the name of the sequence and a dictionary of tetranucleotide : O/E values. 
+
+#Julia Gross, 1/24/15
+
+'''Assumptions: -Each line beginning with ">" is the title of a sequence.
+			    -There is only one sequence per fasta file.'''
+
+# Helpful Functions:
+
+#Pulls in raw file as "string"
+def get_raw_string(file):
+	string = ""
+	for i, line in enumerate(file):
+		if i != 0:                    #This allows the title line to have atgc that doesn't count into the sequence
+			string += line
+	return string
+
+#Removes everything from the raw string except ATGC, and turns the genetic code into a single line
+def lines_to_line(string):
+	string_upper = string.upper()
+	code = ""
+	for s in string_upper:
+		if (s == "A"):
+			code += s
+		elif (s == "T"):
+			code += s
+		elif (s == "G"):
+			code += s
+		elif (s == "C"):
+			code += s
+	return code
+	
+#Takes a title line string and returns formatted name
+def get_name(line):
+	length = len(line)
+	name = line[1:(length-1)]
+	return name
+
+#Prints out the name and number of each type of base in a sequence
+def print_sequence(name, a, t, g, c):
+	print name + " has:" 
+	print "A: " + str(a)
+	print "T: " + str(t)
+	print "G: " + str(g)
+	print "C: " + str(c)
+	
+#Master_Dict Functions:
+def make_twos():
+	ones = ['A', 'T', 'G', 'C']
+	twos = []
+	for o in ones:
+		for i, o1 in enumerate(ones):
+			twos += o + ones[i] ,
+	return twos
+
+def make_threes():
+	ones = ['A', 'T', 'G', 'C']
+	twos = make_twos()
+	threes = []
+	for o in ones:
+		for i, t in enumerate(twos):
+			threes += o + twos[i] ,
+	return threes
+	
+def make_fours():
+	ones = ['A', 'T', 'G', 'C']
+	threes = make_threes()
+	fours = []
+	for o in ones:
+		for i, t in enumerate(threes):
+			fours += o + threes[i] ,
+	return fours
+
+def make_master_dict():
+	master_dict = {}
+	list = make_fours()
+	for f in list:
+		master_dict[f] = 0
+	return master_dict
+
+#Generate expected_dict, where master_dict = all the tets as keys with all the values = 0. atcg = percentage of code that is each base, and total = length of the sequence
+def make_expected_dict(master_dict, a, t, g, c, total):
+	expected_dict = master_dict
+	for k, v in master_dict.iteritems():
+		a_counter_ink = 0
+		t_counter_ink = 0
+		g_counter_ink = 0
+		c_counter_ink = 0
+		for s in str(k):
+			if s == "A":
+				a_counter_ink += 1
+			if s == "T":
+				t_counter_ink += 1
+			if s == "G":
+				g_counter_ink += 1
+			if s == "C":
+				c_counter_ink += 1
+			expected_dict[k] = ((a**a_counter_ink) * (t**t_counter_ink) * (g**g_counter_ink) * (c**c_counter_ink)) * total
+	return expected_dict
+
+#Generate o/e dict. This function assumes an exact match in the keys of the two dictionaries that it takes as inputs.
+def make_oe_dict(observed_dict, expected_dict):
+	oe_dict = make_master_dict()
+	for (k, v), (k2, v2) in zip(observed_dict.items(), expected_dict.items()):
+		oe_dict[k] = v / float(v2)
+	return oe_dict
+
+#Print Dictionary of Tets : # (works for tet : observed, expected, or o/e)
+def print_dict(dict):
+	for k, v in dict.iteritems():
+		if dict[k] > 0:
+			print k, "%.2f" % v
+			
+#Print Table of Tet: O E (O/E). Assumes the 3 dicts have matching keys.
+def print_table(observed_dict, expected_dict, oe_dict):
+	print "Tet:		O:	  	E:	        O/E: "
+	for (k,v), (k2, v2), (k3, v3) in zip(observed_dict.items(), expected_dict.items(), oe_dict.items()):
+		p_e = "%.3f" % v2
+		p_oe = "%.3f" % v3
+		print k + "		" + str(v) + "		" + str(p_e) + "		" + str(p_oe)
+		
+	
+# Main Program:
+	
+my_file = open("avatar_ahPeg.txt", "r+")						# Opens File
+
+a_counter = 0											# Sets Default Counters
+t_counter = 0
+g_counter = 0											
+c_counter = 0
+name = ""
+raw_tets = []
+observed_dict = {}
+
+string = get_raw_string(my_file)
+code = lines_to_line(string)
+
+for line in my_file:									# Reads my_file, one line at a time
+	if line[0] == ">":									# Sets the title as the text following the > on the first line
+		name = get_name(line)
+		
+for i, c in enumerate(code):
+	if c == "A":
+		a_counter += 1
+	if c == "T":
+		t_counter += 1
+	if c == "C":
+		c_counter += 1
+	if c == "G":
+		g_counter += 1
+	if i+3 <= (len(code)-1):
+		tet = code[i] + code[i+1] + code[i+2] + code[i+3]
+		raw_tets += tet ,
+
+master_dict_observed = make_master_dict()
+observed_dict = master_dict_observed
+
+#Generate Observed Dict
+for t in raw_tets:
+	if t in master_dict_observed:
+		observed_dict[t] += 1
+
+#Generate Expected Dict
+master_dict_expected = make_master_dict()
+total = float(len(code))
+a = a_counter/total
+t = (t_counter/total)
+g = (g_counter/total)
+c = (c_counter/total)
+expected_dict = make_expected_dict(master_dict_expected, a, t, g, c, total)
+
+#Generate o/e_dict
+oe_dict = make_oe_dict(observed_dict, expected_dict)
+
+#print_dict(observed_dict)
+#print_dict(expected_dict)
+#print_dict(oe_dict)
+
+#print_table(observed_dict, expected_dict, oe_dict)
+	
+
+my_file.close()											# Closes File
