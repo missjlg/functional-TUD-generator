@@ -17,9 +17,9 @@ def get_raw_string(file):
 
 #Removes everything from the raw string except ATGC, and turns the genetic code into a single line
 def lines_to_line(string):
-	string_upper = string.upper()
+	string.upper()
 	code = ""
-	for s in string_upper:
+	for s in string:
 		if (s == "A"):
 			code += s
 		elif (s == "T"):
